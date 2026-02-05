@@ -12,8 +12,6 @@ pub async fn poll_loop(discord: serenity::Context, data: Data) -> ! {
 }
 
 async fn poll(discord: &serenity::Context, data: &Data) -> anyhow::Result<()> {
-    tracing::info!("polling…");
-
     let feed = &data.bsky.api.app.bsky.feed;
     let timeline = feed
         .get_timeline(

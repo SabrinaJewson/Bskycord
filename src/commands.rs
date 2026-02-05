@@ -149,30 +149,23 @@ async fn follows(cx: Context<'_>) -> Result<(), DisplayAsAlt<anyhow::Error>> {
 
     let mut follows =
         match &guild {
-            Some(guild) => {
-                sqlx::query_as!(
-                    Follow,
-                    "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE guild = ?",
-                    *guild
-                )
-                .fetch_all(&cx.data().db)
-                .await
-            }
+            Some(guild) => sqlx::query_as!(
+                Follow,
+                "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE guild = ? ORDER BY handle, channel",
+                *guild
+            )
+            .fetch(&cx.data().db),
             None => sqlx::query_as!(
                 Follow,
-                "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE channel = ?",
+                "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE channel = ? ORDER BY handle, channel",
                 channel
             )
-            .fetch_all(&cx.data().db)
-            .await,
-        }
-        .context("listing follows")?;
-
-    follows.sort_unstable();
+            .fetch(&cx.data().db)
+        };
 
     let mut msg = String::new();
 
-    for follow in follows {
+    while let Some(follow) = follows.try_next().await.context("listing follows")? {
         writeln!(msg, "- {} — <#{}>", follow.handle, follow.channel).unwrap();
     }
 
@@ -188,13 +181,13 @@ async fn follows(cx: Context<'_>) -> Result<(), DisplayAsAlt<anyhow::Error>> {
 async fn followed_profiles(
     cx: Context<'_>,
     term: &str,
-) -> impl Iterator<Item = AutocompleteChoice> {
+) -> Vec<AutocompleteChoice> {
     let res = async {
         let channel = i64::from(cx.channel_id());
         let mut choices = Vec::new();
         let pattern = format!("%{term}%");
         let mut stream = sqlx::query!(
-            "SELECT handle, did FROM channel_follows WHERE channel = ? AND handle LIKE ?",
+            "SELECT handle, did FROM channel_follows WHERE channel = ? AND handle LIKE ? ORDER BY handle LIMIT 20",
             channel,
             pattern,
         )
@@ -204,23 +197,19 @@ async fn followed_profiles(
             .await
             .context("reading followed profiles")?
         {
-            choices.push((row.handle, row.did));
+            choices.push(AutocompleteChoice::new(row.handle, row.did));
         }
-        choices.sort_unstable();
         anyhow::Ok(choices)
     }
     .await;
 
-    let choices = match res {
+    match res {
         Ok(choices) => choices,
         Err(e) => {
             tracing::error!("loading choices: {e:#}");
             Vec::new()
         }
-    };
-    choices
-        .into_iter()
-        .map(|(handle, did)| AutocompleteChoice::new(handle, did))
+    }
 }
 
 struct AtIdentifierWrapper(AtIdentifier);
