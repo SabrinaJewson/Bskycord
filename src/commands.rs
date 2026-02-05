@@ -178,10 +178,7 @@ async fn follows(cx: Context<'_>) -> Result<(), DisplayAsAlt<anyhow::Error>> {
     Ok(())
 }
 
-async fn followed_profiles(
-    cx: Context<'_>,
-    term: &str,
-) -> Vec<AutocompleteChoice> {
+async fn followed_profiles(cx: Context<'_>, term: &str) -> Vec<AutocompleteChoice> {
     let res = async {
         let channel = i64::from(cx.channel_id());
         let mut choices = Vec::new();

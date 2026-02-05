@@ -16,39 +16,41 @@ impl Data {
 async fn make_bsky_agent(store: &Path) -> anyhow::Result<BskyAgent> {
     let file_store = bsky_sdk::agent::config::FileStore::new(store);
 
-    Ok(match store.try_exists().context("store try_exists")? {
-        true => {
-            let config = bsky_sdk::agent::config::Config::load(&file_store)
-                .await
-                .with_context(|| format!("loading config from {}", store.display()))?;
+    match async {
+        let config = bsky_sdk::agent::config::Config::load(&file_store)
+            .await
+            .context("reading config file")?;
 
-            BskyAgent::builder()
-                .config(config)
-                .build()
-                .await
-                .context("making bsky agent with config")?
-        }
-        false => {
-            let identifier = env::var("BSKY_IDENTIFIER").context("reading `BSKY_IDENTIFIER`")?;
-            let password = env::var("BSKY_PASSWORD").context("reading `BSKY_PASSWORD`")?;
+        BskyAgent::builder()
+            .config(config)
+            .build()
+            .await
+            .context("making bsky agent with config")
+    }
+    .await
+    {
+        Ok(agent) => return Ok(agent),
+        Err(e) => tracing::error!("loading config from {}: {e:#}", store.display()),
+    }
 
-            let agent = BskyAgent::builder()
-                .build()
-                .await
-                .context("making new bsky agent")?;
-            agent
-                .login(&identifier, &password)
-                .await
-                .context("logging in to BlueSky")?;
-            agent
-                .to_config()
-                .await
-                .save(&file_store)
-                .await
-                .with_context(|| format!("saving config to {}", store.display()))?;
-            agent
-        }
-    })
+    let identifier = env::var("BSKY_IDENTIFIER").context("reading `BSKY_IDENTIFIER`")?;
+    let password = env::var("BSKY_PASSWORD").context("reading `BSKY_PASSWORD`")?;
+
+    let agent = BskyAgent::builder()
+        .build()
+        .await
+        .context("making new bsky agent")?;
+    agent
+        .login(&identifier, &password)
+        .await
+        .context("logging in to BlueSky")?;
+    agent
+        .to_config()
+        .await
+        .save(&file_store)
+        .await
+        .with_context(|| format!("saving config to {}", store.display()))?;
+    Ok(agent)
 }
 
 async fn connect_to_db(db_url: &str) -> anyhow::Result<SqlitePool> {
