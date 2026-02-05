@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT 1 AS \"__: i64\" FROM follows WHERE did = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "__: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f9e9effeea537a632aa4458d1fa731816390fa2aa9db602fbe3cc1d8ac041d9c"
+}

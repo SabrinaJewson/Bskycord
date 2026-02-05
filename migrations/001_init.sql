@@ -1,0 +1,21 @@
+CREATE TABLE global (
+	id INTEGER PRIMARY KEY CHECK (id = 0),
+	last_updated INTEGER NOT NULL
+) STRICT;
+
+INSERT INTO global VALUES (0, unixepoch());
+
+CREATE TABLE follows (
+	id INTEGER PRIMARY KEY,
+	did TEXT NOT NULL UNIQUE,
+	uri TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE channel_follows (
+	id INTEGER PRIMARY KEY,
+	did TEXT NOT NULL,
+	handle TEXT NOT NULL,
+	guild INTEGER,
+	channel INTEGER NOT NULL,
+	UNIQUE (did, channel)
+) STRICT;

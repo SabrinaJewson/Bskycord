@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT handle, did FROM channel_follows WHERE channel = ? AND handle LIKE ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "handle",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "did",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "36c1ec7246ac397063ff2638488e23548840e56b7cae18ed0a7e9c91d3de58c2"
+}

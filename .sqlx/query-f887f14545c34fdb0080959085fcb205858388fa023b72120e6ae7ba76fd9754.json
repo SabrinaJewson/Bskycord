@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT channel AS \"channel: _\" FROM channel_follows WHERE did = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel: _",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f887f14545c34fdb0080959085fcb205858388fa023b72120e6ae7ba76fd9754"
+}

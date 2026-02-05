@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_follows VALUES (NULL, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "7207ca5419d295c654c63c68a066a136eacb482850608c2bfccaf0213132bf03"
+}

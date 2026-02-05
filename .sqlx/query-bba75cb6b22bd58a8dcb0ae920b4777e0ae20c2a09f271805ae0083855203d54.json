@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM follows WHERE did = ? RETURNING uri",
+  "describe": {
+    "columns": [
+      {
+        "name": "uri",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bba75cb6b22bd58a8dcb0ae920b4777e0ae20c2a09f271805ae0083855203d54"
+}

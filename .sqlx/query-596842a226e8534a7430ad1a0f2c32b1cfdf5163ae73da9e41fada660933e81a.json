@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(SELECT 1 FROM channel_follows WHERE did = ?) AS ex",
+  "describe": {
+    "columns": [
+      {
+        "name": "ex",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "596842a226e8534a7430ad1a0f2c32b1cfdf5163ae73da9e41fada660933e81a"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT last_updated FROM global",
+  "describe": {
+    "columns": [
+      {
+        "name": "last_updated",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "eb097252e2c88ea9e93295b6743e2304340c55bc5c7410899569a42623b70daa"
+}

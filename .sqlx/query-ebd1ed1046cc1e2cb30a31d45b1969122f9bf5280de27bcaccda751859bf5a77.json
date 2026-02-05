@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE global SET last_updated = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "ebd1ed1046cc1e2cb30a31d45b1969122f9bf5280de27bcaccda751859bf5a77"
+}

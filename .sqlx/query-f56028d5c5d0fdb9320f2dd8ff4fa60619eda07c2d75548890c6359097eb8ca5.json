@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM channel_follows WHERE did = ? AND channel = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f56028d5c5d0fdb9320f2dd8ff4fa60619eda07c2d75548890c6359097eb8ca5"
+}
