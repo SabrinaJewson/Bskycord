@@ -1,0 +1,17 @@
+[package]
+name = "bskycord-bin"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.100"
+dotenvy = "0.15.7"
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
+tracing-subscriber = "0.3.22"
+bskycord = { path = "../lib" }
+
+[[bin]]
+name = "bskycord"
+path = "main.rs"

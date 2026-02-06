@@ -1,0 +1,19 @@
+[package]
+name = "bskycord"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.100"
+bsky-sdk = "0.1.23"
+chrono = "0.4.43"
+futures-util = "0.3.31"
+poise = { git = "https://github.com/SabrinaJewson/poise.rs", branch = "all-prs" }
+sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio"] }
+tokio = { version = "1.49.0", features = ["time"] }
+tracing = "0.1.44"
+
+[lib]
+path = "lib.rs"

@@ -1,19 +1,32 @@
-pub fn all() -> Vec<poise::Command<Data, DisplayAsAlt<anyhow::Error>>> {
-    vec![follow(), unfollow(), follows()]
+pub trait AsBot: 'static + Sync {
+    fn as_bot(&self) -> Bot;
 }
 
-type Context<'a> = poise::Context<'a, Data, DisplayAsAlt<anyhow::Error>>;
+impl AsBot for Bot {
+    fn as_bot(&self) -> Bot {
+        self.clone()
+    }
+}
+
+pub fn commands<U: AsBot, E: 'static + From<anyhow::Error>>()
+-> impl Iterator<Item = poise::Command<U, E>> {
+    [follow(), unfollow(), follows()].into_iter()
+}
 
 /// Follow a BlueSky profile in the channel
 #[poise::command(slash_command, default_member_permissions = "ADMINISTRATOR", ephemeral)]
-async fn follow(
-    cx: Context<'_>,
-    #[description = "The profile to follow"] profile: AtIdentifierWrapper,
-) -> Result<(), DisplayAsAlt<anyhow::Error>> {
+async fn follow<U: AsBot, E: From<anyhow::Error>>(
+    cx: poise::Context<'_, U, E>,
+    #[string]
+    #[description = "The profile to follow"]
+    profile: AtIdentifierWrapper,
+) -> Result<(), E> {
+    let bot = cx.data().as_bot();
+
     let guild = cx.guild_id().map(i64::from);
     let channel = i64::from(cx.channel_id());
 
-    let actor = &cx.data().bsky.api.app.bsky.actor;
+    let actor = &bot.bsky.api.app.bsky.actor;
     let profile = actor
         .get_profile(
             bsky_sdk::api::app::bsky::actor::get_profile::ParametersData {
@@ -24,7 +37,7 @@ async fn follow(
         .await
         .with_context(|| format!("reading profile of {}", profile.0.as_ref()))?;
 
-    let mut tx = cx.data().db.begin().await.context("starting transaction")?;
+    let mut tx = bot.db.begin().await.context("starting transaction")?;
 
     let did = profile.did.as_str();
     let handle = profile.handle.as_str();
@@ -36,8 +49,7 @@ async fn follow(
         .is_some();
 
     if !exists {
-        let followed = cx
-            .data()
+        let followed = bot
             .bsky
             .create_record(bsky_sdk::api::app::bsky::graph::follow::RecordData {
                 created_at: bsky_sdk::api::types::string::Datetime::now(),
@@ -76,12 +88,15 @@ async fn follow(
 
 /// Unfollow a BlueSky profile in the channel
 #[poise::command(slash_command, default_member_permissions = "ADMINISTRATOR", ephemeral)]
-async fn unfollow(
-    cx: Context<'_>,
+async fn unfollow<U: AsBot, E: From<anyhow::Error>>(
+    cx: poise::Context<'_, U, E>,
+    #[string]
     #[description = "The profile to unfollow"]
     #[autocomplete = followed_profiles]
     profile: DidWrapper,
-) -> Result<(), DisplayAsAlt<anyhow::Error>> {
+) -> Result<(), E> {
+    let bot = cx.data().as_bot();
+
     let channel = i64::from(cx.channel_id());
 
     let did = profile.0.as_str();
@@ -91,11 +106,9 @@ async fn unfollow(
         did,
         channel
     )
-    .execute(&cx.data().db)
+    .execute(&bot.db)
     .await
     .context("deleting follow")?;
-
-    let data = cx.data().clone();
 
     cx.say(match result.rows_affected() {
         0 => format!("{did} was not followed to begin with"),
@@ -104,7 +117,7 @@ async fn unfollow(
     .await
     .context("responding")?;
 
-    let mut tx = data.db.begin().await.context("starting transaction")?;
+    let mut tx = bot.db.begin().await.context("starting transaction")?;
 
     let other_channel_follows = sqlx::query!(
         "SELECT EXISTS(SELECT 1 FROM channel_follows WHERE did = ?) AS ex",
@@ -122,7 +135,7 @@ async fn unfollow(
             .context("recording removed follow")?;
 
         if let Some(row) = row {
-            data.bsky
+            bot.bsky
                 .delete_record(row.uri)
                 .await
                 .with_context(|| format!("unfollowing {did}"))?;
@@ -137,7 +150,9 @@ async fn unfollow(
 
 /// Show follows in this guild
 #[poise::command(slash_command, ephemeral)]
-async fn follows(cx: Context<'_>) -> Result<(), DisplayAsAlt<anyhow::Error>> {
+async fn follows<U: AsBot, E: From<anyhow::Error>>(cx: poise::Context<'_, U, E>) -> Result<(), E> {
+    let bot = cx.data().as_bot();
+
     #[derive(PartialEq, Eq, PartialOrd, Ord)]
     struct Follow {
         handle: String,
@@ -154,13 +169,13 @@ async fn follows(cx: Context<'_>) -> Result<(), DisplayAsAlt<anyhow::Error>> {
                 "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE guild = ? ORDER BY handle, channel",
                 *guild
             )
-            .fetch(&cx.data().db),
+            .fetch(&bot.db),
             None => sqlx::query_as!(
                 Follow,
                 "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE channel = ? ORDER BY handle, channel",
                 channel
             )
-            .fetch(&cx.data().db)
+            .fetch(&bot.db)
         };
 
     let mut msg = String::new();
@@ -178,23 +193,27 @@ async fn follows(cx: Context<'_>) -> Result<(), DisplayAsAlt<anyhow::Error>> {
     Ok(())
 }
 
-async fn followed_profiles(cx: Context<'_>, term: &str) -> Vec<AutocompleteChoice> {
+async fn followed_profiles<U: AsBot, E>(
+    cx: poise::Context<'_, U, E>,
+    term: &str,
+) -> CreateAutocompleteResponse {
+    let bot = cx.data().as_bot();
     let res = async {
         let channel = i64::from(cx.channel_id());
-        let mut choices = Vec::new();
+        let mut choices = CreateAutocompleteResponse::new();
         let pattern = format!("%{term}%");
         let mut stream = sqlx::query!(
             "SELECT handle, did FROM channel_follows WHERE channel = ? AND handle LIKE ? ORDER BY handle LIMIT 20",
             channel,
             pattern,
         )
-        .fetch(&cx.data().db);
+        .fetch(&bot.db);
         while let Some(row) = stream
             .try_next()
             .await
             .context("reading followed profiles")?
         {
-            choices.push(AutocompleteChoice::new(row.handle, row.did));
+            choices = choices.add_string_choice(row.handle, row.did);
         }
         anyhow::Ok(choices)
     }
@@ -204,7 +223,7 @@ async fn followed_profiles(cx: Context<'_>, term: &str) -> Vec<AutocompleteChoic
         Ok(choices) => choices,
         Err(e) => {
             tracing::error!("loading choices: {e:#}");
-            Vec::new()
+            CreateAutocompleteResponse::new()
         }
     }
 }
@@ -251,32 +270,13 @@ impl Error for ErrorWrapper {
     }
 }
 
-pub struct DisplayAsAlt<T>(T);
-
-impl<T: Display> Debug for DisplayAsAlt<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:#}", self.0)
-    }
-}
-impl<T: Display> Display for DisplayAsAlt<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:#}", self.0)
-    }
-}
-
-impl<T> From<T> for DisplayAsAlt<T> {
-    fn from(value: T) -> Self {
-        Self(value)
-    }
-}
-
-use crate::data::Data;
+use crate::Bot;
 use anyhow::Context as _;
 use anyhow::anyhow;
 use bsky_sdk::api::types::string::AtIdentifier;
 use bsky_sdk::api::types::string::Did;
 use futures_util::TryStreamExt;
-use poise::serenity_prelude::AutocompleteChoice;
+use poise::serenity_prelude::CreateAutocompleteResponse;
 use std::error::Error;
 use std::fmt;
 use std::fmt::Debug;

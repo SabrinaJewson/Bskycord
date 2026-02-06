@@ -8,11 +8,18 @@ async fn main() -> anyhow::Result<()> {
     let db_url = env::var("DATABASE_URL").context("reading `DATABASE_URL`")?;
     let discord_token = env::var("DISCORD_TOKEN").context("reading `DISCORD_TOKEN`")?;
 
-    let data = Data::new(bsky_config_file.as_ref(), &db_url).await?;
+    let bot = match bskycord::Bot::new(bsky_config_file.as_ref(), &db_url).await? {
+        Ok(bot) => bot,
+        Err(needs_credentials) => {
+            let identifier = env::var("BSKY_IDENTIFIER").context("reading `BSKY_IDENTIFIER`")?;
+            let password = env::var("BSKY_PASSWORD").context("reading `BSKY_PASSWORD`")?;
+            needs_credentials.finish(&identifier, &password).await?
+        }
+    };
 
     let poise = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: commands::all(),
+            commands: bskycord::commands::<bskycord::Bot, anyhow::Error>().collect(),
             ..Default::default()
         })
         .setup(|cx, _ready, framework| {
@@ -21,9 +28,9 @@ async fn main() -> anyhow::Result<()> {
                     .await
                     .context("registering commands")?;
 
-                tokio::spawn(poll::poll_loop(cx.clone(), data.clone()));
+                bot.start_poll(cx.clone(), Duration::from_secs(60));
 
-                Ok(data)
+                Ok(bot)
             })
         })
         .build();
@@ -39,12 +46,9 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-mod commands;
-mod data;
-mod poll;
-
-use crate::data::Data;
 use anyhow::Context as _;
+use bskycord::poise;
 use dotenvy::dotenv;
 use poise::serenity_prelude as serenity;
 use std::env;
+use std::time::Duration;

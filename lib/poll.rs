@@ -1,67 +1,74 @@
-pub async fn poll_loop(discord: serenity::Context, data: Data) -> ! {
-    let mut interval = tokio::time::interval(Duration::from_secs(60));
-    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-
-    loop {
-        interval.tick().await;
-
-        if let Err(e) = catch_panic(poll(&discord, &data)).await {
-            tracing::error!("polling: {e:#}")
-        }
+impl Bot {
+    pub fn start_poll(&self, discord: serenity::Context, interval: Duration) {
+        let this = self.clone();
+        tokio::spawn(async move { this.poll_loop(&discord, interval).await });
     }
-}
 
-async fn poll(discord: &serenity::Context, data: &Data) -> anyhow::Result<()> {
-    let feed = &data.bsky.api.app.bsky.feed;
-    let timeline = feed
-        .get_timeline(
-            bsky_sdk::api::app::bsky::feed::get_timeline::ParametersData {
-                algorithm: None,
-                cursor: None,
-                // By default, 50
-                limit: None,
+    pub async fn poll_loop(&self, discord: &serenity::Context, interval: Duration) -> ! {
+        let mut interval = tokio::time::interval(interval);
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+        loop {
+            interval.tick().await;
+
+            if let Err(e) = catch_panic(self.poll(discord)).await {
+                tracing::error!("polling: {e:#}")
             }
-            .into(),
-        )
-        .await
-        .context("loading feed")?;
-
-    let last_updated = sqlx::query!("SELECT last_updated FROM global")
-        .fetch_one(&data.db)
-        .await
-        .context("reading `last_updated`")?
-        .last_updated;
-
-    let last_updated = chrono::DateTime::from_timestamp_secs(last_updated)
-        .context("last updated time out of range")?
-        .fixed_offset();
-    let mut max_last_updated = last_updated;
-
-    for post in timeline.data.feed {
-        let uri = post.post.uri.clone();
-        match catch_panic(consume_post(discord, data, last_updated, post.data)).await {
-            Ok(new_last_updated) if max_last_updated < new_last_updated => {
-                max_last_updated = new_last_updated
-                    .duration_round_up(TimeDelta::seconds(1))
-                    .context("rounding")?;
-
-                let last_updated = max_last_updated.timestamp();
-                sqlx::query!("UPDATE global SET last_updated = ?", last_updated)
-                    .execute(&data.db)
-                    .await
-                    .context("updating `last_updated`")?;
-            }
-            Ok(_) => {}
-            Err(e) => tracing::error!("consuming {uri}: {e:#}"),
         }
     }
 
-    Ok(())
+    pub async fn poll(&self, discord: &serenity::Context) -> anyhow::Result<()> {
+        let feed = &self.bsky.api.app.bsky.feed;
+        let timeline = feed
+            .get_timeline(
+                bsky_sdk::api::app::bsky::feed::get_timeline::ParametersData {
+                    algorithm: None,
+                    cursor: None,
+                    // By default, 50
+                    limit: None,
+                }
+                .into(),
+            )
+            .await
+            .context("loading feed")?;
+
+        let last_updated = sqlx::query!("SELECT last_updated FROM global")
+            .fetch_one(&self.db)
+            .await
+            .context("reading `last_updated`")?
+            .last_updated;
+
+        let last_updated = chrono::DateTime::from_timestamp_secs(last_updated)
+            .context("last updated time out of range")?
+            .fixed_offset();
+        let mut max_last_updated = last_updated;
+
+        for post in timeline.data.feed {
+            let uri = post.post.uri.clone();
+            match catch_panic(consume_post(self, discord, last_updated, post.data)).await {
+                Ok(new_last_updated) if max_last_updated < new_last_updated => {
+                    max_last_updated = new_last_updated
+                        .duration_round_up(TimeDelta::seconds(1))
+                        .context("rounding")?;
+
+                    let last_updated = max_last_updated.timestamp();
+                    sqlx::query!("UPDATE global SET last_updated = ?", last_updated)
+                        .execute(&self.db)
+                        .await
+                        .context("updating `last_updated`")?;
+                }
+                Ok(_) => {}
+                Err(e) => tracing::error!("consuming {uri}: {e:#}"),
+            }
+        }
+
+        Ok(())
+    }
 }
 
 async fn consume_post(
+    bot: &Bot,
     discord: &serenity::Context,
-    data: &Data,
     last_updated: chrono::DateTime<chrono::FixedOffset>,
     mut post: bsky::feed::defs::FeedViewPostData,
 ) -> anyhow::Result<chrono::DateTime<chrono::FixedOffset>> {
@@ -88,7 +95,7 @@ async fn consume_post(
         "SELECT channel AS \"channel: _\" FROM channel_follows WHERE did = ?",
         author_did
     )
-    .fetch(&data.db);
+    .fetch(&bot.db);
 
     while let Some(channel) = channels
         .try_next()
@@ -180,7 +187,7 @@ async fn catch_panic<T, F: Future<Output = anyhow::Result<T>>>(fut: F) -> anyhow
         .unwrap_or_else(|_| Err(anyhow!("panicked")))
 }
 
-use crate::data::Data;
+use crate::Bot;
 use anyhow::Context as _;
 use anyhow::anyhow;
 use bsky_sdk::api::app::bsky;
