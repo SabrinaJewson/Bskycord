@@ -14,6 +14,6 @@ If `BSKY_CONFIG_FILE` does not exist, it will be created when these env vars are
 Make a dedicated account for this because bot makes use of which accounts you follow.
 
 Commands:
-- `/follow profile`: Follow the given profile in the current channel.
-- `/unfollow profile`: Unfollow the given profile in the current channel.
+- `/follow <profile>`: Follow the given profile in the current channel.
+- `/unfollow <profile>`: Unfollow the given profile in the current channel.
 - `/follows`: Show all follows in the current guild.
