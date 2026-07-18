@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE channel = ?",
+  "query": "SELECT handle, channel AS \"channel: _\" FROM channel_follows WHERE guild = ? ORDER BY handle, channel",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "680296922bafadc28d561412a85fc06fae152ac68894c0df91591cc729fcfa18"
+  "hash": "b851eaced88dedb8be4d5d5e0eb5d5be007412e515ed3f135a984a66fb72e7f3"
 }
