@@ -7,11 +7,11 @@ license = "MIT"
 
 [dependencies]
 anyhow = "1.0.100"
-bsky-sdk = "0.1.23"
+bsky-sdk = "0.2.0"
 chrono = "0.4.43"
 futures-util = "0.3.31"
 poise = { git = "https://github.com/serenity-rs/poise", rev = "303023a92609872add5c415fddbc1046289d77f4" }
-sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio"] }
+sqlx = { version = "0.9.0", features = ["sqlite", "runtime-tokio"] }
 tokio = { version = "1.49.0", features = ["time"] }
 tracing = "0.1.44"
 

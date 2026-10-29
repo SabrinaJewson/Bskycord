@@ -54,6 +54,7 @@ async fn follow<U: AsBot, E: From<anyhow::Error>>(
             .create_record(bsky_sdk::api::app::bsky::graph::follow::RecordData {
                 created_at: bsky_sdk::api::types::string::Datetime::now(),
                 subject: profile.did.clone(),
+                via: None,
             })
             .await
             .with_context(|| format!("following {handle}"))?;
